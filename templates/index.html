@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Simple Calculator</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <main class="calculator">
+    <header>
+      <h1>Calculator</h1>
+      <div id="display" class="display">0</div>
+    </header>
+
+    <div class="keys">
+      <button class="btn" data-action="clear">C</button>
+      <button class="btn" data-action="back">⌫</button>
+      <button class="btn op" data-value="/">÷</button>
+      <button class="btn op" data-value="*">×</button>
+
+      <button class="btn" data-value="7">7</button>
+      <button class="btn" data-value="8">8</button>
+      <button class="btn" data-value="9">9</button>
+      <button class="btn op" data-value="-">−</button>
+
+      <button class="btn" data-value="4">4</button>
+      <button class="btn" data-value="5">5</button>
+      <button class="btn" data-value="6">6</button>
+      <button class="btn op" data-value="+">+</button>
+
+      <button class="btn" data-value="1">1</button>
+      <button class="btn" data-value="2">2</button>
+      <button class="btn" data-value="3">3</button>
+      <button class="btn" data-value="(">(</button>
+      <button class="btn" data-value=")">)</button>
+
+      <button class="btn" data-value="0">0</button>
+      <button class="btn" data-value=".">.</button>
+      <button class="btn op" data-value="%">%</button>
+
+      <button class="btn equal" id="equals">=</button>
+      <div class="note">Supports + − × ÷ % ** and parentheses</div>
+    </div>
+  </main>
+
+  <script>
+    const display = document.getElementById('display');
+    let expression = '';
+
+    function updateDisplay() {
+      display.textContent = expression || '0';
+    }
+
+    function mapForServer(expr) {
+      return expr.replace(/×/g, '*').replace(/÷/g, '/').replace(/−/g, '-');
+    }
+
+    document.querySelectorAll('.btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const action = btn.dataset.action;
+        const val = btn.dataset.value;
+
+        if (action === 'clear') {
+          expression = '';
+          updateDisplay();
+          return;
+        }
+        if (action === 'back') {
+          expression = expression.slice(0, -1);
+          updateDisplay();
+          return;
+        }
+        if (val !== undefined) {
+          expression += val;
+          updateDisplay();
+        }
+      });
+    });
+
+    document.getElementById('equals').addEventListener('click', async () => {
+      if (!expression.trim()) return;
+      const payload = { expression: mapForServer(expression) };
+      try {
+        const res = await fetch('/api/evaluate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const json = await res.json();
+        if (res.ok && json.result !== undefined) {
+          expression = String(json.result);
+          updateDisplay();
+        } else {
+          display.textContent = json.error || 'Error';
+          expression = '';
+        }
+      } catch {
+        display.textContent = 'Network error';
+      }
+    });
+
+    // keyboard input
+    window.addEventListener('keydown', (e) => {
+      const allowed = '0123456789+-*/().%';
+      if (allowed.includes(e.key)) {
+        expression += e.key;
+        updateDisplay();
+      } else if (e.key === 'Enter') {
+        document.getElementById('equals').click();
+      } else if (e.key === 'Backspace') {
+        expression = expression.slice(0, -1);
+        updateDisplay();
+      } else if (e.key.toLowerCase() === 'c') {
+        expression = '';
+        updateDisplay();
+      }
+    });
+
+    updateDisplay();
+  </script>
+</body>
+</html>
